@@ -1,0 +1,9 @@
+*.so
+*.o
+
+venv/
+__pycache__/
+*.pyc
+
+.vscode/
+*.swp
