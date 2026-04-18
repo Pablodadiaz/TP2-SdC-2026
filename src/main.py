@@ -23,7 +23,7 @@ lib.procesar_gini.restype  = ctypes.c_long       # devuelve un long
 
 URL = (
     "https://api.worldbank.org/v2/en/country/all/indicator/SI.POV.GINI"
-    "?format=json&date=2011:2020&per_page=32500&page=1"
+    "?format=json&date=2011:2024&per_page=32500&page=1"
 )
 
 print("Consultando API del Banco Mundial...")
@@ -45,9 +45,10 @@ anio_valor = None
 for registro in registros:
     # Cada registro tiene: countryiso3code, date, value, etc.
     if registro["countryiso3code"] == "ARG" and registro["value"] is not None:
-        gini_valor = registro["value"]   # esto es un float
-        anio_valor = registro["date"]
-        break  # tomamos el primer año disponible con dato
+        # Tomamos el año más reciente disponible
+        if anio_valor is None or int(registro["date"]) > int(anio_valor):
+            gini_valor = registro["value"]   # esto es un float
+            anio_valor = registro["date"]
 
 if gini_valor is None:
     print("No se encontró dato de GINI para Argentina")
