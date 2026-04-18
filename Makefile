@@ -4,7 +4,7 @@
 CC      = gcc
 CFLAGS  = -shared -fPIC -g3
 LIB     = src/libgini.so
-SRC     = src/gini_calc.c
+SRC     = src/gini_calc.c src/func_asm.s
 
 # Regla principal: "make" o "make all" compila todo
 all: $(LIB)
