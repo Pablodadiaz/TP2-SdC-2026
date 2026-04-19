@@ -1,68 +1,42 @@
-# main.py
-
 import requests
 import ctypes
 import os
 
-# ─────────────────────────────────────────
-# 1. CARGAR LA BIBLIOTECA DE C
-# ─────────────────────────────────────────
+print("Consultando API del Banco Mundial...\n")
 
-# Cargamos el .so que compilamos
-# os.path.abspath asegura que Python encuentre el archivo
-lib = ctypes.CDLL(os.path.abspath("./src/libgini.so"))
-
-# Le decimos a ctypes qué tipo recibe y qué tipo devuelve la función
-# Esto es IMPORTANTE: sin esto ctypes puede pasar los datos mal
-lib.procesar_gini.argtypes = [ctypes.c_double]  # recibe un double
-lib.procesar_gini.restype  = ctypes.c_long       # devuelve un long
-
-# ─────────────────────────────────────────
-# 2. OBTENER DATOS DE LA API
-# ─────────────────────────────────────────
-
-URL = (
-    "https://api.worldbank.org/v2/en/country/all/indicator/SI.POV.GINI"
-    "?format=json&date=2011:2024&per_page=32500&page=1"
-)
-
-print("Consultando API del Banco Mundial...")
-respuesta = requests.get(URL)
-
-# La API devuelve una lista de 2 elementos:
-# [0] = metadata (info de paginación)
-# [1] = lista de registros con los datos reales
+# 1. Traer datos de la API (Usamos un rango de años como pedía el profe originalmente)
+url = "https://api.worldbank.org/v2/en/country/all/indicator/SI.POV.GINI?format=json&date=2011:2022&per_page=32500&page=1&country=%22Argentina%22"
+respuesta = requests.get(url)
 datos = respuesta.json()
-registros = datos[1]
 
-# ─────────────────────────────────────────
-# 3. FILTRAR ARGENTINA Y OBTENER GINI
-# ─────────────────────────────────────────
+# 2. Buscar el primer valor del GINI que NO sea nulo
+valor_gini = None
+anio_encontrado = "Desconocido"
 
-gini_valor = None
-anio_valor = None
+for registro in datos[1]:
+    if registro['value'] is not None:
+        valor_gini = registro['value']
+        anio_encontrado = registro['date']
+        break # Apenas encuentra un número válido, corta la búsqueda
 
-for registro in registros:
-    # Cada registro tiene: countryiso3code, date, value, etc.
-    if registro["countryiso3code"] == "ARG" and registro["value"] is not None:
-        # Tomamos el año más reciente disponible
-        if anio_valor is None or int(registro["date"]) > int(anio_valor):
-            gini_valor = registro["value"]   # esto es un float
-            anio_valor = registro["date"]
-
-if gini_valor is None:
-    print("No se encontró dato de GINI para Argentina")
+# Medida de seguridad por si no encuentra nada en absoluto
+if valor_gini is None:
+    print("[Error] No se encontró ningún dato numérico en la API.")
     exit(1)
 
-print(f"\n[Python] País:        Argentina")
-print(f"[Python] Año:         {anio_valor}")
-print(f"[Python] GINI float:  {gini_valor}")
+print(f"[Python] País:        Argentina")
+print(f"[Python] Año:         {anio_encontrado}")
+print(f"[Python] GINI float:  {valor_gini}")
 
-# ─────────────────────────────────────────
-# 4. LLAMAR A C (acá se usa el stack!)
-# ─────────────────────────────────────────
+# 3. Cargar la librería en C que compilamos
+ruta_libreria = os.path.abspath('./libgini.so')
+mi_libreria_c = ctypes.CDLL(ruta_libreria)
 
-print("\n--- Llamando función en C ---")
-resultado = lib.procesar_gini(gini_valor)
+# 4. Configurar qué entra y qué sale de la función de C
+mi_libreria_c.procesar_gini.argtypes = [ctypes.c_float]
+mi_libreria_c.procesar_gini.restype = ctypes.c_int     
 
-print(f"\n[Python] Resultado recibido desde C: {resultado}")
+# 5. Llamar a la función en C
+resultado_desde_c = mi_libreria_c.procesar_gini(valor_gini)
+
+print(f"[Python] Resultado recibido desde C: {resultado_desde_c}")
